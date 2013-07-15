@@ -13,6 +13,9 @@ package
 	
 	public class SeaBattle extends Sprite 
 	{
+		public const WIN_AI:String = "AI has won! Game Over!";
+		public const WIN_HUMAN:String = "Human has won! Game Over!";
+		
 		public const SIZE_CELL:int = 15;
 		
 		public const EMPTY:int = 0;
@@ -56,8 +59,6 @@ package
 		}
 		
 		private function preseed(f:Array):void {
-			//trace("preseed");
-			
 			f[0]=SHIP;
 			f[1]=SHIP;
 			f[2]=SHIP;
@@ -91,7 +92,6 @@ package
 		
 		
 		public function SeaBattle() {
-			//trace("start");
 			preseed(f1);
 			preseed(f2);
 			repaint();
@@ -102,13 +102,11 @@ package
 		}
 		
 		private function clean():void {
-			//trace("clean");
 			removeChildren();
 		}
 		
 		private function repaint():void {
 			clean();
-			//trace("repaint");
 			drawFieldAt(f1, 0, 0, true);
 			drawFieldAt(f2, SIZE_CELL * 11, 0, false);
 			drawDebug();
@@ -120,9 +118,9 @@ package
 		
 		private function drawDebug():void {
 			debug.x = 0;
-			debug.y = 150;
-			debug.width = 500; 
-			debug.height = 200; 
+			debug.y = 11 * SIZE_CELL;
+			debug.width = 21 * SIZE_CELL; 
+			debug.height = 100; 
 			debug.multiline = true; 
 			debug.wordWrap = true; 
 			debug.background = true; 
@@ -185,11 +183,9 @@ package
 		
 		private function fireHuman(event:MouseEvent):void {
 			var children:Array = getObjectsUnderPoint(new Point(event.stageX, event.stageY));
-			if(children != null && children.length > 0) {
+			if(!has_lost(f1) && !has_lost(f2) && children != null && children.length > 0) {
 				try {
 					var cell:Cell = Cell(children[0]);
-					
-					trace("fireHuman " + cell.i + "," + cell.j);
 					var index:int = cell.i*10 + cell.j;
 					var cvalue:int = cell.field[index];
 					var result:int;
@@ -200,6 +196,10 @@ package
 						default: break;
 					}
 					
+					if(has_lost(f1)) {
+						trace(WIN_HUMAN);
+					}
+					
 					repaint();
 					
 					if (result == MISS) {
@@ -207,7 +207,7 @@ package
 					}
 					
 				} catch (e:Error) {
-					trace(children + " didn't contain a Cell");
+					//trace(children + " didn't contain a Cell");
 				}
 			}
 		}
@@ -240,7 +240,6 @@ package
 			if(index+1 >= 0 && index+1 < 100 && field[index+1] == HIT) {result = result + 1;}
 			if(index-10 >= 0 && index-10 < 100 && field[index-10] == HIT) {result = result + 1;}
 			if(index+10 >= 0 && index+10 < 100 && field[index+10] == HIT) {result = result + 1;}
-			//if(result > 0) { trace("weight = " + result + " for " + index)};
 			return result;
 		}
 		
@@ -255,7 +254,6 @@ package
 			var weights:Array = new Array(unknown.length);
 			for (i=0; i<unknown.length; i++) {
 				weights[i] = computeNearbyHits(field, unknown[i]);
-				//if(weights[i] > 0) {trace("weight = " + result + " for " + unknown[i])}
 			}
 			return weights;
 		}
@@ -274,7 +272,6 @@ package
 		}
 		
 		private function fireAI():int {
-			trace("fireAI");
 			var mapUnknown:Function = function(item:int, index:int, array:Array):int{
 				if (item != HIT && item != MISS) {
 					return index;
@@ -290,14 +287,11 @@ package
 			var maxWeight:int = -1;
 			var i:int = 0;
 			for(i=0; i<weights.length; i++) {if (maxWeight < weights[i]) maxWeight = weights[i]; }
-			trace("weights = " + weights);
-			trace("unknown = " + unknown);
-			trace("maxWeight = " + maxWeight);
 			
 			var result:int = -1;
 			
 			if (unknown.length == 0) {
-				trace("AI wins! Game Over!");
+				trace(WIN_AI);
 				result = LOSS;
 			} else {
 				
@@ -306,11 +300,8 @@ package
 				}
 				
 				var unknown2:Array = unknown.filter(filterInefficient);
-				trace("unknown2 = " + unknown2);
 				var unknownIndex:int = Math.floor(Math.random() * unknown2.length);
 				var f2Index:int = unknown2[unknownIndex];
-				
-				trace("fireAI to " + f2Index);
 				
 				result = (f2[f2Index] == SHIP)? HIT : MISS;
 				
@@ -323,8 +314,12 @@ package
 		}
 		
 		private function turnAI():void {
-			while(fireAI() == HIT) {
+			while(!has_lost(f2) && fireAI() == HIT) {
 				continue;
+			}
+			
+			if(has_lost(f2)) {
+				trace(WIN_AI);
 			}
 		}
 		
