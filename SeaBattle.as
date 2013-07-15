@@ -42,11 +42,17 @@ package
 		}
 		
 		public function get(f:Array, x:int, y:int):int {
-			return f[xy2i(x,y)];
+			if(x>=0 && x<10 && y>=0 && y<10) {
+				return f[xy2i(x,y)];
+			} else {
+				return -1;
+			}
 		}
 		
-		public function set(f:Array, x:int, y:int, value:int):int {
-			f[xy2i(x,y)]=value;
+		public function set(f:Array, x:int, y:int, value:int):void {
+			if(x>=0 && x<10 && y>=0 && y<10) {
+				f[xy2i(x,y)]=value;
+			}
 		}
 		
 		private function preseed(f:Array):void {
@@ -290,13 +296,13 @@ package
 			
 			var result:int = -1;
 			
-			if (f2.length == 0) {
+			if (unknown.length == 0) {
 				trace("AI wins! Game Over!");
 				result = LOSS;
 			} else {
 				
 				var filterInefficient:Function = function(item:int, index:int, array:Array): Boolean{
-					return weights[item] == maxWeight;
+					return (computeNearbyHits(f2, item) == maxWeight);
 				}
 				
 				var unknown2:Array = unknown.filter(filterInefficient);
