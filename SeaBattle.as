@@ -18,17 +18,20 @@ package
 		
 		public const SIZE_CELL:int = 15;
 		
+		public const INVALID:int = -1;
 		public const EMPTY:int = 0;
 		public const SHIP:int = 1;
 		public const HIT:int = 2;
 		public const MISS:int = 3;
 		public const WIN:int = 4;
 		public const LOSS:int = 5;
+		public const RESERVED:int = 6;
 		
 		private var f1:Array = new Array(100);
 		private var f2:Array = new Array(100);
 		
-		private var debug:TextField = new TextField();
+		private var tf_debug:TextField = new TextField();
+		private var b_reset:Sprite = new Sprite();
 		
 		private var ccell:Cell = null;
 		
@@ -48,7 +51,7 @@ package
 			if(x>=0 && x<10 && y>=0 && y<10) {
 				return f[xy2i(x,y)];
 			} else {
-				return -1;
+				return INVALID;
 			}
 		}
 		
@@ -56,6 +59,135 @@ package
 			if(x>=0 && x<10 && y>=0 && y<10) {
 				f[xy2i(x,y)]=value;
 			}
+		}
+		
+		private function fit(f:Array, x:int, y:int, o:int, s:int):Boolean{
+			//trace("fit: " + f + " | " + x + " | " + y + " | " + o + " | " + s);
+			var i:int = -1;
+			var j:int = -1;
+			
+			// check ship body
+			for(i=0; i<s; i++) {
+				if (o==0) {
+					if (get(f, x+i, y) != EMPTY) {
+						return false;
+					}
+				} else {
+					if (get(f, x, y+i) != EMPTY) {
+						return false;
+					}
+				}
+			}
+			
+			// check surrounding
+			for(i=-1; i<s+1; i++) {
+				for (j=-1; j<=1; j++) {
+					if (o==0) {
+						if (get(f, x+i, y+j) != EMPTY && get(f, x+i, y+j) != RESERVED /*&& get(f, x+i, y+j) != INVALID*/) {
+							return false;
+						}
+					} else {
+						if (get(f, x+j, y+i) != EMPTY && get(f, x+j, y+i) != RESERVED /*&& get(f, x+j, y+i) != INVALID*/) {
+							return false;
+						}
+					}
+				}
+			}
+			
+			return true;
+		}
+		
+		private function place(f:Array, x:int, y:int, o:int, s:int):void{
+			//trace("place: " + f + " | " + x + " | " + y + " | " + o + " | " + s);
+			var i:int = -1;
+			var j:int = -1;
+			for(i=-1; i<s+1; i++) {
+				for (j=-1; j<=1; j++) {
+					(o==0) ? set(f, x+i, y+j, RESERVED) : set(f, x+j, y+i, RESERVED);
+				}
+			}
+			
+			for(i=0; i<s; i++) {
+				(o==0) ? set(f, x+i, y, SHIP) : set(f, x, y+i, SHIP);
+			}
+		}
+		
+		private function unplace(f:Array, x:int, y:int, o:int, s:int):void{
+			//trace("unplace: " + f + " | " + x + " | " + y + " | " + o + " | " + s);
+			var i:int = -1;
+			var j:int = -1;
+			for(i=-1; i<s+1; i++) {
+				for (j=-1; j<=1; j++) {
+					(o==0) ? set(f, x+i, y+j, EMPTY) : set(f, x+j, y+i, EMPTY);
+				}
+			}
+		}
+		
+		private function shuffle(array:Array): void {
+			var i:int = array.length-1;
+			for(i; i>0; i--) {
+				var r:int = Math.floor(Math.random() * i);
+				exchange(array, i, r);
+			}
+		}
+		private function reset(array:Array): void {
+			var i:int = array.length-1;
+			for(i; i>=0; i--) {
+				array[i] = 0;
+			}
+		}
+		
+		private function next_ship(f:Array, ships:Array):Boolean {
+			//trace("next_ship: " + f + " | " + ships);
+			if (ships.length == 0) {
+				return true;
+			} else {
+				var mapEmpty:Function = function(item:int, index:int, array:Array):int{
+					if (item == EMPTY) {
+						return index;
+					} else {
+						return INVALID;
+					}
+				};
+				var filterEmpty:Function = function(item:int, index:int, array:Array):Boolean{
+					return item != INVALID;
+				};
+				var empty:Array = f.map(mapEmpty).filter(filterEmpty);
+				shuffle(empty);
+				
+				var result:Boolean = false;
+				var s:int = ships.pop();
+				var i:int = 0;
+				for (i; i<empty.length; i++) {
+					var index:int = empty[i];
+					var x:int = i2x(index);
+					var y:int = i2y(index);
+					var o:int = Math.floor(Math.random() * 2);	// random orientation
+					if (fit(f, x, y, o, s)) {
+						place(f, x, y, o, s);
+						result = next_ship(f, ships);
+						if (!result) {
+							unplace(f, x, y, o, s);
+							continue;
+						} else {
+							break;
+						}
+					} else {
+						continue;
+					}
+				}
+				
+				ships.push(s);
+				return result;
+			}
+		}
+		
+		private function pregen(f:Array): void {
+			var ships:Array = new Array(1, 1, 1, 1, 2, 2, 2, 3, 3, 4);
+			//var ships:Array = new Array(3, 4);
+			//var ships:Array = new Array(1);
+			//ships[0] = 4;
+			var result:Boolean = next_ship(f, ships);
 		}
 		
 		private function preseed(f:Array):void {
@@ -92,13 +224,23 @@ package
 		
 		
 		public function SeaBattle() {
-			preseed(f1);
-			preseed(f2);
+			restart(null);
+		}
+		
+		public function restart(event:MouseEvent): void {
+			f1 = new Array(100);
+			f2 = new Array(100);
+			pregen(f1);
+			pregen(f2);
 			repaint();
 		}
 		
 		private function has_lost(f:Array):Boolean {
 			return f.indexOf(SHIP) == -1;
+		}
+		
+		private function game_over(): Boolean {
+			return ( has_lost(f1) || has_lost(f2) );
 		}
 		
 		private function clean():void {
@@ -109,43 +251,62 @@ package
 			clean();
 			drawFieldAt(f1, 0, 0, true);
 			drawFieldAt(f2, SIZE_CELL * 11, 0, false);
+			drawButtons();
 			drawDebug();
 		}
 		
 		private function trace(message: String):void {
-			debug.appendText("\n- "+message);
+			tf_debug.appendText("\n- "+message);
+		}
+		
+		private function drawButtons():void {
+			var textLabel:TextField = new TextField();
+			textLabel.text = "Restart";
+			textLabel.x = 22 * SIZE_CELL;
+			textLabel.y = SIZE_CELL;
+			textLabel.selectable = false;
+			
+			b_reset.graphics.clear();
+			b_reset.graphics.beginFill(0xD4D4D4); // grey color
+			b_reset.graphics.drawRoundRect(22 * SIZE_CELL, SIZE_CELL, 3 * SIZE_CELL, SIZE_CELL, 10, 10); // x, y, width, height, ellipseW, ellipseH
+			b_reset.graphics.endFill();
+			b_reset.addChild(textLabel);
+			
+			b_reset.addEventListener(MouseEvent.CLICK, restart);
+			
+			addChild(b_reset);
 		}
 		
 		private function drawDebug():void {
-			debug.x = 0;
-			debug.y = 11 * SIZE_CELL;
-			debug.width = 21 * SIZE_CELL; 
-			debug.height = 100; 
-			debug.multiline = true; 
-			debug.wordWrap = true; 
-			debug.background = true; 
-			debug.border = true; 
-			debug.scrollV = debug.numLines;
+			tf_debug.x = 0;
+			tf_debug.y = 11 * SIZE_CELL;
+			tf_debug.width = 21 * SIZE_CELL; 
+			tf_debug.height = 100; 
+			tf_debug.multiline = true; 
+			tf_debug.wordWrap = true; 
+			tf_debug.background = true; 
+			tf_debug.border = true; 
+			tf_debug.scrollV = tf_debug.numLines;
 			
 			var format:TextFormat = new TextFormat(); 
 			format.font = "Console New"; 
 			format.color = 0xFF0000; 
 			format.size = 8; 
 			
-			debug.defaultTextFormat = format; 
-			addChild(debug); 
-			debug.addEventListener(MouseEvent.MOUSE_DOWN, mouseDownScroll);
-			debug.addEventListener(MouseEvent.MOUSE_UP, mouseUpScroll);
+			tf_debug.defaultTextFormat = format; 
+			addChild(tf_debug); 
+			tf_debug.addEventListener(MouseEvent.MOUSE_DOWN, mouseDownScroll);
+			tf_debug.addEventListener(MouseEvent.MOUSE_UP, mouseUpScroll);
 		} 
 		
 		public function mouseDownScroll(event:MouseEvent):void 
 		{ 
-			debug.scrollV++; 
+			tf_debug.scrollV++; 
 		}
 		
 		public function mouseUpScroll(event:MouseEvent):void 
 		{
-			debug.scrollV--; 
+			tf_debug.scrollV--; 
 		}
 		
 		
@@ -156,6 +317,7 @@ package
 				case SHIP: color = fog? 0xffffff : 0x888888; break;
 				case HIT: color = 0xff0000; break;
 				case MISS: color = 0x00aa00; break;
+				case RESERVED: color = fog? 0xffffff : 0xADD8E6; break;
 				default: color = 0x000000;
 			}
 			
@@ -182,21 +344,27 @@ package
 		}
 		
 		private function fireHuman(event:MouseEvent):void {
+			//trace("fireHuman: " + arguments);
 			var children:Array = getObjectsUnderPoint(new Point(event.stageX, event.stageY));
-			if(!has_lost(f1) && !has_lost(f2) && children != null && children.length > 0) {
+			//trace("fireHuman: " + children);
+			//trace("fireHuman: " + has_lost(f1) + "," + has_lost(f2));
+			if(!game_over() && children != null && children.length > 0) {
 				try {
 					var cell:Cell = Cell(children[0]);
 					var index:int = cell.i*10 + cell.j;
 					var cvalue:int = cell.field[index];
 					var result:int;
 					
+					//trace("fireHuman: cvalue = " + cvalue);
+					
 					switch(cvalue) {
 						case EMPTY: cell.field[index] = MISS; result = MISS; break;
-						case SHIP: cell.field[index] = HIT; result = HIT; break;
+						case RESERVED: cell.field[index] = MISS; result = MISS; break;
+						case SHIP: cell.field[index] = HIT; result = HIT; evaluateShot2(cell.field, index, HIT); break;
 						default: break;
 					}
 					
-					if(has_lost(f1)) {
+					if(game_over()) {
 						trace(WIN_HUMAN);
 					}
 					
@@ -276,11 +444,11 @@ package
 				if (item != HIT && item != MISS) {
 					return index;
 				} else {
-					return -1;
+					return INVALID;
 				}
 			};
 			var filterUnknown:Function = function(item:int, index:int, array:Array):Boolean{
-				return item != -1;
+				return item != INVALID;
 			};
 			var unknown:Array = f2.map(mapUnknown).filter(filterUnknown);
 			var weights:Array = computeWeights(f2, unknown);
@@ -314,11 +482,11 @@ package
 		}
 		
 		private function turnAI():void {
-			while(!has_lost(f2) && fireAI() == HIT) {
+			while(!game_over() && fireAI() == HIT) {
 				continue;
 			}
 			
-			if(has_lost(f2)) {
+			if(game_over()) {
 				trace(WIN_AI);
 			}
 		}
@@ -336,7 +504,6 @@ package
 	}
 }
 
-import flash.display.Shape;
 import flash.display.Sprite;
 
 class Cell extends Sprite {
