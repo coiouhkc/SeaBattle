@@ -83,11 +83,11 @@ package
 			for(i=-1; i<s+1; i++) {
 				for (j=-1; j<=1; j++) {
 					if (o==0) {
-						if (get(f, x+i, y+j) != EMPTY && get(f, x+i, y+j) != RESERVED /*&& get(f, x+i, y+j) != INVALID*/) {
+						if (get(f, x+i, y+j) != EMPTY && get(f, x+i, y+j) != RESERVED && get(f, x+i, y+j) != INVALID) {
 							return false;
 						}
 					} else {
-						if (get(f, x+j, y+i) != EMPTY && get(f, x+j, y+i) != RESERVED /*&& get(f, x+j, y+i) != INVALID*/) {
+						if (get(f, x+j, y+i) != EMPTY && get(f, x+j, y+i) != RESERVED && get(f, x+j, y+i) != INVALID) {
 							return false;
 						}
 					}
