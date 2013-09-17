@@ -33,7 +33,9 @@ package
 		private var tf_debug:TextField = new TextField();
 		private var b_reset:Sprite = new Sprite();
 		
-		private var ccell:Cell = null;
+		/*
+		* Function set to handle 1-dim play field as 2-dim.
+		*/
 		
 		private function i2x(index:int):int {
 			return index%10;
@@ -61,6 +63,14 @@ package
 			}
 		}
 		
+		/**
+		* Function to check whether a ship fits on the battle field.
+		* @param f - battle field
+		* @param x - x coordinate
+		* @param y - y coordinate
+		* @param o - orienatation, 0 stands for horizontal, 1 stands for vertical
+		* @param s - size (length) of the ship, 1-4
+		*/
 		private function fit(f:Array, x:int, y:int, o:int, s:int):Boolean{
 			//trace("fit: " + f + " | " + x + " | " + y + " | " + o + " | " + s);
 			var i:int = -1;
@@ -97,6 +107,14 @@ package
 			return true;
 		}
 		
+		/**
+		* Function to place a ship on the battle field.
+		* @param f - battle field
+		* @param x - x coordinate
+		* @param y - y coordinate
+		* @param o - orienatation, 0 stands for horizontal, 1 stands for vertical
+		* @param s - size (length) of the ship, 1-4
+		*/
 		private function place(f:Array, x:int, y:int, o:int, s:int):void{
 			//trace("place: " + f + " | " + x + " | " + y + " | " + o + " | " + s);
 			var i:int = -1;
@@ -112,6 +130,14 @@ package
 			}
 		}
 		
+		/**
+		* Function to unplace (remove) a ship on the battle field.
+		* @param f - battle field
+		* @param x - x coordinate
+		* @param y - y coordinate
+		* @param o - orienatation, 0 stands for horizontal, 1 stands for vertical
+		* @param s - size (length) of the ship, 1-4
+		*/
 		private function unplace(f:Array, x:int, y:int, o:int, s:int):void{
 			//trace("unplace: " + f + " | " + x + " | " + y + " | " + o + " | " + s);
 			var i:int = -1;
@@ -123,6 +149,10 @@ package
 			}
 		}
 		
+		/**
+		* Function to shuffle the array using Fisher-Yates algorithm.
+		* @param array - array to shuffle in-place
+		*/
 		private function shuffle(array:Array): void {
 			var i:int = array.length-1;
 			for(i; i>0; i--) {
@@ -130,6 +160,11 @@ package
 				exchange(array, i, r);
 			}
 		}
+		
+		/**
+		* Function to reset (init with zeros) the array.
+		* @param array - array to reset
+		*/
 		private function reset(array:Array): void {
 			var i:int = array.length-1;
 			for(i; i>=0; i--) {
@@ -137,6 +172,24 @@ package
 			}
 		}
 		
+		/**
+		* Function to exchange elements in array.
+		* @param array - array
+		* @param i - index1
+		* @param j - index2
+		*/
+		private function exchange(array:Array, i:int, j:int) :void {
+			var t:int = array[j];
+			array[j] = array[i];
+			array[i] = t;
+		}
+		
+		/**
+		* Function to place the next ship on the battle field.
+		* Note: uses recursive dynamic programming and tries to place the last ship from the list prior to going deeper.
+		* @param f - battle field
+		* @param ships - array containing lengths of ships pending to be placed on the battle field.
+		*/
 		private function next_ship(f:Array, ships:Array):Boolean {
 			//trace("next_ship: " + f + " | " + ships);
 			if (ships.length == 0) {
@@ -152,44 +205,54 @@ package
 				var filterEmpty:Function = function(item:int, index:int, array:Array):Boolean{
 					return item != INVALID;
 				};
+				
+				// compute all possible starting placement positions for the ship
 				var empty:Array = f.map(mapEmpty).filter(filterEmpty);
+				// randomly shuffle the positions
 				shuffle(empty);
 				
 				var result:Boolean = false;
-				var s:int = ships.pop();
+				var s:int = ships.pop();	// get the ship to place
 				var i:int = 0;
-				for (i; i<empty.length; i++) {
+				for (i; i<empty.length; i++) {	// iterate over all possible starting positions
 					var index:int = empty[i];
 					var x:int = i2x(index);
 					var y:int = i2y(index);
 					var o:int = Math.floor(Math.random() * 2);	// random orientation
-					if (fit(f, x, y, o, s)) {
-						place(f, x, y, o, s);
-						result = next_ship(f, ships);
-						if (!result) {
-							unplace(f, x, y, o, s);
-							continue;
+					if (fit(f, x, y, o, s)) {	// if ship fits
+						place(f, x, y, o, s);	// place ship
+						result = next_ship(f, ships);		// recursively try to place all the others
+						if (!result) {	// if recursive call fails
+							unplace(f, x, y, o, s);	// unplace the ship
+							continue;	// and try the luck with next position
 						} else {
-							break;
+							break;	// else placement found
 						}
 					} else {
-						continue;
+						continue;	// ship does not fit, try the luck with next position
 					}
 				}
 				
+				// push the ship back to the list, since it is arecursive call which might have failed.
 				ships.push(s);
+				
 				return result;
 			}
 		}
 		
+		/**
+		* Function to pre-generate the battle field.
+		* @param f - battle field
+		*/
 		private function pregen(f:Array): void {
 			var ships:Array = new Array(1, 1, 1, 1, 2, 2, 2, 3, 3, 4);
-			//var ships:Array = new Array(3, 4);
-			//var ships:Array = new Array(1);
-			//ships[0] = 4;
 			var result:Boolean = next_ship(f, ships);
 		}
 		
+		/**
+		* Function to pre-seed the battle field with pre-defined layout.
+		* @param f - battle field
+		*/
 		private function preseed(f:Array):void {
 			f[0]=SHIP;
 			f[1]=SHIP;
@@ -222,11 +285,17 @@ package
 			f[47]=SHIP;
 		}
 		
-		
+		/**
+		* Entry point
+		*/
 		public function SeaBattle() {
 			restart(null);
 		}
 		
+		/**
+		* Function to restart (reset) the game.
+		* @param event - mouse event, which caused the restart. May be null.
+		*/
 		public function restart(event:MouseEvent): void {
 			f1 = new Array(100);
 			f2 = new Array(100);
@@ -235,18 +304,31 @@ package
 			repaint();
 		}
 		
+		/**
+		* Function to check whether a player owning the battle field has lost the game.
+		* @param f - battle field
+		*/
 		private function has_lost(f:Array):Boolean {
 			return f.indexOf(SHIP) == -1;
 		}
 		
+		/**
+		* Function to check whether the game is over.
+		*/
 		private function game_over(): Boolean {
 			return ( has_lost(f1) || has_lost(f2) );
 		}
 		
+		/**
+		* Function to clean the screen.
+		*/
 		private function clean():void {
 			removeChildren();
 		}
 		
+		/**
+		* Function to repaint the screen.
+		*/
 		private function repaint():void {
 			clean();
 			drawFieldAt(f1, 0, 0, true);
@@ -255,10 +337,17 @@ package
 			drawDebug();
 		}
 		
+		/**
+		* Function to custom trace.
+		* @param message - trace message
+		*/
 		private function trace(message: String):void {
 			tf_debug.appendText("\n- "+message);
 		}
 		
+		/**
+		* Function to draw the game buttons.
+		*/
 		private function drawButtons():void {
 			var textLabel:TextField = new TextField();
 			textLabel.text = "Restart";
@@ -277,6 +366,9 @@ package
 			addChild(b_reset);
 		}
 		
+		/**
+		* Function to draw the game debug (trace) area.
+		*/
 		private function drawDebug():void {
 			tf_debug.x = 0;
 			tf_debug.y = 11 * SIZE_CELL;
@@ -322,9 +414,6 @@ package
 			}
 			
 			var linecolor:uint = 0x000000;
-			if(ccell != null && ccell.i == i && ccell.j ==j ) {
-				linecolor = 0xff0000;
-			}
 			
 			var rect:Cell = new Cell();
 			rect.field = f1;
@@ -343,19 +432,36 @@ package
 			addChild(rect);
 		}
 		
+		/**
+		* Function to draw the game battle field.
+		* Note: parameter fog defines whether it is a human or AI battle field.
+		* @param field - battle field
+		* @param x - x coordinate
+		* @param y - y coordinate
+		* @param fog - whether fog of war is enabled
+		*/
+		private function drawFieldAt(field:Array, x:int, y:int, fog:Boolean):void {
+			var i:int = 0;
+			var j:int = 0;
+			
+			for(i=0; i<10; i++) {
+				for(j=0; j<10; j++) {
+					drawFieldCellAtWithOffset(field[i*10+j], i, j, x, y, fog);
+				}
+			}
+		}
+		
+		/**
+		* Function callback to handle human fire events.
+		*/
 		private function fireHuman(event:MouseEvent):void {
-			//trace("fireHuman: " + arguments);
 			var children:Array = getObjectsUnderPoint(new Point(event.stageX, event.stageY));
-			//trace("fireHuman: " + children);
-			//trace("fireHuman: " + has_lost(f1) + "," + has_lost(f2));
 			if(!game_over() && children != null && children.length > 0) {
 				try {
 					var cell:Cell = Cell(children[0]);
 					var index:int = cell.i*10 + cell.j;
 					var cvalue:int = cell.field[index];
 					var result:int;
-					
-					//trace("fireHuman: cvalue = " + cvalue);
 					
 					switch(cvalue) {
 						case EMPTY: cell.field[index] = MISS; result = MISS; break;
@@ -411,12 +517,6 @@ package
 			return result;
 		}
 		
-		private function exchange(array:Array, i:int, j:int) :void {
-			var t:int = array[j];
-			array[j] = array[i];
-			array[i] = t;
-		}
-		
 		private function computeWeights(field:Array, unknown:Array): Array {
 			var i:int = 0;
 			var weights:Array = new Array(unknown.length);
@@ -439,6 +539,9 @@ package
 			}
 		}
 		
+		/**
+		* Function containing AI logic for fire.
+		*/
 		private function fireAI():int {
 			var mapUnknown:Function = function(item:int, index:int, array:Array):int{
 				if (item != HIT && item != MISS) {
@@ -481,6 +584,9 @@ package
 			return result;
 		}
 		
+		/**
+		* Function to execute the AI game turn.
+		*/
 		private function turnAI():void {
 			while(!game_over() && fireAI() == HIT) {
 				continue;
@@ -488,17 +594,6 @@ package
 			
 			if(game_over()) {
 				trace(WIN_AI);
-			}
-		}
-		
-		private function drawFieldAt(field:Array, x:int, y:int, fog:Boolean):void {
-			var i:int = 0;
-			var j:int = 0;
-			
-			for(i=0; i<10; i++) {
-				for(j=0; j<10; j++) {
-					drawFieldCellAtWithOffset(field[i*10+j], i, j, x, y, fog);
-				}
 			}
 		}
 	}
